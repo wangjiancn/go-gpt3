@@ -64,6 +64,10 @@ func (stream *CompletionStream) Close() {
 	stream.response.Body.Close()
 }
 
+func (stream *CompletionStream) GetResponse() *http.Response {
+	return stream.response
+}
+
 // CreateCompletionStream — API call to create a completion w/ streaming
 // support. It sets whether to stream back partial progress. If set, tokens will be
 // sent as data-only server-sent events as they become available, with the
