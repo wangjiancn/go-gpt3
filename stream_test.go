@@ -1,15 +1,15 @@
 package gogpt_test
 
 import (
-	. "github.com/sashabaranov/go-gpt3"
-	"github.com/sashabaranov/go-gpt3/internal/test"
-
 	"context"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	. "github.com/wangjiancn/go-gpt3"
+	"github.com/wangjiancn/go-gpt3/internal/test"
 )
 
 func TestCreateCompletionStream(t *testing.T) {

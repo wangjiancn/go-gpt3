@@ -1,9 +1,6 @@
 package gogpt_test
 
 import (
-	. "github.com/sashabaranov/go-gpt3"
-	"github.com/sashabaranov/go-gpt3/internal/test"
-
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,6 +9,9 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	. "github.com/wangjiancn/go-gpt3"
+	"github.com/wangjiancn/go-gpt3/internal/test"
 )
 
 func TestImages(t *testing.T) {

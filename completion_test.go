@@ -1,9 +1,6 @@
 package gogpt_test
 
 import (
-	. "github.com/sashabaranov/go-gpt3"
-	"github.com/sashabaranov/go-gpt3/internal/test"
-
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,6 +10,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	. "github.com/wangjiancn/go-gpt3"
+	"github.com/wangjiancn/go-gpt3/internal/test"
 )
 
 // TestCompletions Tests the completions endpoint of the API using the mocked server.

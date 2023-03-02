@@ -1,13 +1,13 @@
 package gogpt_test
 
 import (
-	. "github.com/sashabaranov/go-gpt3"
-
 	"context"
 	"errors"
 	"io"
 	"os"
 	"testing"
+
+	. "github.com/wangjiancn/go-gpt3"
 )
 
 func TestAPI(t *testing.T) {
