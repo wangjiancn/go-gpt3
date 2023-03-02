@@ -1,15 +1,19 @@
 package gogpt
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 )
 
 var (
-	ErrChatCompletionInvalidModel = errors.New("currently, only gpt-3.5-turbo and gpt-3.5-turbo-0301 are supported")
+	ErrChatCompletionInvalidModel     = errors.New("currently, only gpt-3.5-turbo and gpt-3.5-turbo-0301 are supported")
+	ErrTooManyEmptyChatStreamMessages = errors.New("chat stream has sent too many empty messages")
 )
 
 type ChatCompletionMessage struct {
@@ -49,7 +53,7 @@ type ChatCompletionResponse struct {
 	Usage   Usage                  `json:"usage"`
 }
 
-// CreateChatCompletion — API call to Creates a completion for the chat message.
+// CreateChatCompletion — API call to Create a completion for the chat message.
 func (c *Client) CreateChatCompletion(
 	ctx context.Context,
 	request ChatCompletionRequest,
@@ -74,5 +78,111 @@ func (c *Client) CreateChatCompletion(
 
 	req = req.WithContext(ctx)
 	err = c.sendRequest(req, &response)
+	return
+}
+
+type ChatCompletionStreamResponse struct {
+	ID      string `json:"id"`
+	Object  string `json:"object"`
+	Created int64  `json:"created"`
+	Model   string `json:"model"`
+	Choices []struct {
+		Index int `json:"index"`
+		Delta struct {
+			Content string `json:"content"`
+		} `json:"delta"`
+		FinishReason string `json:"finish_reason"`
+	} `json:"choices"`
+}
+
+type ChatCompletionStream struct {
+	emptyMessagesLimit uint
+	isFinished         bool
+
+	reader   *bufio.Reader
+	response *http.Response
+}
+
+func (stream *ChatCompletionStream) Recv() (response ChatCompletionStreamResponse, err error) {
+	if stream.isFinished {
+		err = io.EOF
+		return
+	}
+
+	var emptyMessagesCount uint
+
+waitForData:
+	line, err := stream.reader.ReadBytes('\n')
+	if err != nil {
+		return
+	}
+
+	var headerData = []byte("data: ")
+	line = bytes.TrimSpace(line)
+	if !bytes.HasPrefix(line, headerData) {
+		emptyMessagesCount++
+		if emptyMessagesCount > stream.emptyMessagesLimit {
+			err = ErrTooManyEmptyStreamMessages
+			return
+		}
+
+		goto waitForData
+	}
+
+	line = bytes.TrimPrefix(line, headerData)
+	if string(line) == "[DONE]" {
+		stream.isFinished = true
+		err = io.EOF
+		return
+	}
+
+	err = json.Unmarshal(line, &response)
+	return
+}
+
+func (stream *ChatCompletionStream) Close() {
+	stream.response.Body.Close()
+}
+
+func (stream *ChatCompletionStream) GetResponse() *http.Response {
+	return stream.response
+}
+
+// CreateChatCompletionStream — API call to create a completion w/ streaming
+// support. It sets whether to stream back partial progress. If set, tokens will be
+// sent as data-only server-sent events as they become available, with the
+// stream terminated by a data: [DONE] message.
+func (c *Client) CreateChatCompletionStream(
+	ctx context.Context,
+	request ChatCompletionRequest,
+) (stream *ChatCompletionStream, err error) {
+	request.Stream = true
+	reqBytes, err := json.Marshal(request)
+	if err != nil {
+		return
+	}
+
+	urlSuffix := "/chat/completions"
+	req, err := http.NewRequest("POST", c.fullURL(urlSuffix), bytes.NewBuffer(reqBytes))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.config.authToken))
+	if err != nil {
+		return
+	}
+
+	req = req.WithContext(ctx)
+	resp, err := c.config.HTTPClient.Do(req) //nolint:bodyclose // body is closed in stream.Close()
+	if err != nil {
+		return
+	}
+
+	stream = &ChatCompletionStream{
+		emptyMessagesLimit: c.config.EmptyMessagesLimit,
+		reader:             bufio.NewReader(resp.Body),
+		response:           resp,
+	}
 	return
 }
