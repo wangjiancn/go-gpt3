@@ -176,11 +176,21 @@ func (c *Client) CreateChatCompletionStream(
 	req = req.WithContext(ctx)
 	resp, err := c.config.HTTPClient.Do(req) //nolint:bodyclose // body is closed in stream.Close()
 	if err != nil {
-		err = RequestError{
-			StatusCode: resp.StatusCode,
-			Err:        err,
-		}
 		return
+	}
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
+		var errRes ErrorResponse
+		err = json.NewDecoder(resp.Body).Decode(&errRes)
+		if err != nil || errRes.Error == nil {
+			reqErr := RequestError{
+				StatusCode: resp.StatusCode,
+				Err:        err,
+			}
+			return nil, reqErr
+		}
+		errRes.Error.StatusCode = resp.StatusCode
+		return nil, errRes.Error
 	}
 
 	stream = &ChatCompletionStream{
