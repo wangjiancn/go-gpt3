@@ -21,17 +21,17 @@ type ErrorResponse struct {
 	Error *APIError `json:"error,omitempty"`
 }
 
-func (e *APIError) Error() string {
+func (e APIError) Error() string {
 	return e.Message
 }
 
-func (e *RequestError) Error() string {
+func (e RequestError) Error() string {
 	if e.Err != nil {
 		return e.Err.Error()
 	}
 	return fmt.Sprintf("status code %d", e.StatusCode)
 }
 
-func (e *RequestError) Unwrap() error {
+func (e RequestError) Unwrap() error {
 	return e.Err
 }

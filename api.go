@@ -61,7 +61,7 @@ func (c *Client) sendRequest(req *http.Request, v interface{}) error {
 				StatusCode: res.StatusCode,
 				Err:        err,
 			}
-			return fmt.Errorf("error, %w", &reqErr)
+			return reqErr
 		}
 		errRes.Error.StatusCode = res.StatusCode
 		return fmt.Errorf("error, status code: %d, message: %w", res.StatusCode, errRes.Error)
